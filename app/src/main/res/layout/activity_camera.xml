@@ -6,4 +6,10 @@
     android:layout_height="match_parent"
     tools:context="com.example.joao.althycolor.CameraActivity">
 
+    <TextureView
+        android:id="@+id/texture"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentTop="true" />
+
 </android.support.constraint.ConstraintLayout>
