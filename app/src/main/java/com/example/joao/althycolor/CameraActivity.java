@@ -4,16 +4,20 @@ import android.Manifest;
 import android.app.ActionBar;
 import android.app.Activity;
 import android.content.pm.PackageManager;
+import android.graphics.ImageFormat;
 import android.graphics.SurfaceTexture;
+import android.hardware.camera2.params.OutputConfiguration;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.ImageReader;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.support.annotation.NonNull;
+import android.support.constraint.ConstraintLayout;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.hardware.camera2.*;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.content.Context;
 import android.util.Size;
@@ -21,6 +25,7 @@ import android.view.Surface;
 import android.view.TextureView;
 import android.view.Window;
 import android.view.WindowManager;
+import android.widget.FrameLayout;
 import android.widget.Toast;
 
 import java.util.ArrayList;
@@ -52,7 +57,7 @@ public class CameraActivity extends Activity {
     TextureView.SurfaceTextureListener textureListener = new TextureView.SurfaceTextureListener() {
         @Override
         public void onSurfaceTextureAvailable(SurfaceTexture surface, int width, int height) {
-            //open your camera here
+            //open your camera here+
             openCamera();
         }
         @Override
@@ -71,7 +76,6 @@ public class CameraActivity extends Activity {
         @Override
         public void onOpened(CameraDevice camera) {
             //This is called when the camera is open
-            Log.e(TAG, "onOpened");
             cameraDevice = camera;
             createCameraPreview();
         }
@@ -88,11 +92,15 @@ public class CameraActivity extends Activity {
 
     protected void createCameraPreview() {
         try {
-            SurfaceTexture texture = textureView.getSurfaceTexture();
 
+
+            SurfaceTexture texture = textureView.getSurfaceTexture();
             assert texture != null;
-            texture.setDefaultBufferSize( imageDimension.getWidth(),imageDimension.getHeight());
+            //Resolução
+            //texture.setDefaultBufferSize( imageDimension.getWidth(),imageDimension.getHeight());
+            texture.setDefaultBufferSize( 1280 ,960);
             Surface surface = new Surface(texture);
+
             captureRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
             captureRequestBuilder.addTarget(surface);
             cameraDevice.createCaptureSession(Arrays.asList(surface), new CameraCaptureSession.StateCallback(){
@@ -122,13 +130,25 @@ public class CameraActivity extends Activity {
             cameraId = manager.getCameraIdList()[0];
             CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraId);
             StreamConfigurationMap map = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
+
             assert map != null;
-            imageDimension = map.getOutputSizes(SurfaceTexture.class)[0];
+            Log.d("aspect ratio", "" + map.getOutputSizes(ImageFormat.JPEG)[10] );
+            imageDimension = map.getOutputSizes(ImageFormat.JPEG)[10];
+
             // Add permission for camera and let user grant the permission
             if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
                 ActivityCompat.requestPermissions(CameraActivity.this, new String[]{Manifest.permission.CAMERA, Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_CAMERA_PERMISSION);
                 return;
             }
+
+            DisplayMetrics display =  new DisplayMetrics();
+            getWindowManager().getDefaultDisplay().getMetrics(display);
+            double DSI_height = display.heightPixels*0.8;
+            int DSI_width = display.widthPixels;
+            int actual_height = (int) DSI_height;
+            textureView.setLayoutParams(new ConstraintLayout.LayoutParams(DSI_width,actual_height)  );
+            Log.d("dsi", Integer.toString(DSI_width));
+
             manager.openCamera(cameraId, stateCallback, null);
         } catch (CameraAccessException e) {
             e.printStackTrace();
@@ -145,51 +165,6 @@ public class CameraActivity extends Activity {
         } catch (CameraAccessException e) {
             e.printStackTrace();
         }
-    }
-
-
-    private static Size chooseOptimalSize(Size[] choices, int textureViewWidth,
-                                          int textureViewHeight, int maxWidth, int maxHeight, Size aspectRatio) {
-
-        // Collect the supported resolutions that are at least as big as the preview Surface
-        List<Size> bigEnough = new ArrayList<>();
-        // Collect the supported resolutions that are smaller than the preview Surface
-        List<Size> notBigEnough = new ArrayList<>();
-        int w = aspectRatio.getWidth();
-        int h = aspectRatio.getHeight();
-        for (Size option : choices) {
-            if (option.getWidth() <= maxWidth && option.getHeight() <= maxHeight &&
-                    option.getHeight() == option.getWidth() * h / w) {
-                if (option.getWidth() >= textureViewWidth &&
-                        option.getHeight() >= textureViewHeight) {
-                    bigEnough.add(option);
-                } else {
-                    notBigEnough.add(option);
-                }
-            }
-        }
-
-        // Pick the smallest of those big enough. If there is no one big enough, pick the
-        // largest of those not big enough.
-        if (bigEnough.size() > 0) {
-            return Collections.min(bigEnough, new CompareSizesByArea());
-        } else if (notBigEnough.size() > 0) {
-            return Collections.max(notBigEnough, new CompareSizesByArea());
-        } else {
-            Log.e(TAG, "Couldn't find any suitable preview size");
-            return choices[0];
-        }
-    }
-
-    static class CompareSizesByArea implements Comparator<Size> {
-
-        @Override
-        public int compare(Size lhs, Size rhs) {
-            // We cast here to ensure the multiplications won't overflow
-            return Long.signum((long) lhs.getWidth() * lhs.getHeight() -
-                    (long) rhs.getWidth() * rhs.getHeight());
-        }
-
     }
 
 }
