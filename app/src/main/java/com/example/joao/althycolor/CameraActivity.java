@@ -46,6 +46,8 @@ public class CameraActivity extends Activity {
     private Size imageDimension;
     private ImageReader imageReader;
     private static final int REQUEST_CAMERA_PERMISSION = 200;
+    private StreamConfigurationMap map;
+    private int current_camera_res=0;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -97,12 +99,13 @@ public class CameraActivity extends Activity {
             SurfaceTexture texture = textureView.getSurfaceTexture();
             assert texture != null;
             //Resolução
-            //texture.setDefaultBufferSize( imageDimension.getWidth(),imageDimension.getHeight());
-            texture.setDefaultBufferSize( 1280 ,960);
+            texture.setDefaultBufferSize( imageDimension.getWidth(),imageDimension.getHeight());
+            //texture.setDefaultBufferSize( 1920   ,1080);
             Surface surface = new Surface(texture);
 
             captureRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
             captureRequestBuilder.addTarget(surface);
+
             cameraDevice.createCaptureSession(Arrays.asList(surface), new CameraCaptureSession.StateCallback(){
                 @Override
                 public void onConfigured(@NonNull CameraCaptureSession cameraCaptureSession) {
@@ -116,7 +119,10 @@ public class CameraActivity extends Activity {
                 }
                 @Override
                 public void onConfigureFailed(@NonNull CameraCaptureSession cameraCaptureSession) {
-                    Toast.makeText(CameraActivity.this, "Configuration change", Toast.LENGTH_SHORT).show();
+                    current_camera_res++;
+                    imageDimension= map.getOutputSizes(SurfaceTexture.class)[current_camera_res];
+                    Log.d("Changing camera res too", ""+ map.getOutputSizes(SurfaceTexture.class)[current_camera_res]);
+                    createCameraPreview();
                 }
             }, null);
         } catch (CameraAccessException e) {
@@ -129,11 +135,11 @@ public class CameraActivity extends Activity {
         try {
             cameraId = manager.getCameraIdList()[0];
             CameraCharacteristics characteristics = manager.getCameraCharacteristics(cameraId);
-            StreamConfigurationMap map = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
+            map = characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
 
             assert map != null;
-            Log.d("aspect ratio", "" + map.getOutputSizes(ImageFormat.JPEG)[10] );
-            imageDimension = map.getOutputSizes(ImageFormat.JPEG)[10];
+            Log.d("aspect ratio", "" + map.getOutputSizes(ImageFormat.JPEG)[current_camera_res] );
+            imageDimension = map.getOutputSizes(ImageFormat.JPEG)[current_camera_res];
 
             // Add permission for camera and let user grant the permission
             if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
