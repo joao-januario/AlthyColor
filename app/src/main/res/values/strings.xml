@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Althy Color</string>
+    <string name="title_activity_drawer">DrawerActivity</string>
 </resources>
